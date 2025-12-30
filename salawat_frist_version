@@ -1,0 +1,499 @@
+
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>متابعة الصلوات</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Cairo", "Segoe UI", Tahoma, sans-serif;
+      background: linear-gradient(135deg, #0a3d62 0%, #1e5f74 100%);
+      color: #fff;
+      direction: rtl;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 100%;
+      margin: auto;
+      background: #0f4c75;
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+      overflow-x: auto;
+    }
+
+    .header { text-align: center; margin-bottom: 30px; }
+    h1 { font-size: 2.5em; margin-bottom: 10px; }
+    .header p { color: #b0b0b0; }
+
+    .quran-verse {
+      background: linear-gradient(135deg, #1e5f74 0%, #0a3d62 100%);
+      padding: 20px;
+      border-radius: 10px;
+      margin: 20px 0;
+      text-align: center;
+      font-size: 1.2em;
+      line-height: 1.8;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+      border: 1px solid #2c7a9b;
+    }
+
+    .verse-text { font-size: 1.3em; margin-bottom: 10px; font-weight: 600; }
+    .verse-reference { font-size: 0.9em; opacity: 0.8; }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin: 25px 0;
+    }
+
+    .stat-card {
+      background: linear-gradient(135deg, #1e5f74 0%, #0a3d62 100%);
+      padding: 20px;
+      border-radius: 10px;
+      text-align: center;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+      border: 1px solid #2c7a9b;
+    }
+
+    .stat-number { font-size: 2em; font-weight: bold; margin-bottom: 5px; }
+    .stat-label { font-size: 0.9em; opacity: 0.9; }
+
+    .tracker-wrapper {
+      background: #1a5c7a;
+      padding: 20px;
+      border-radius: 10px;
+      margin: 20px 0;
+      overflow-x: auto;
+    }
+
+    .months { display: flex; gap: 4px; margin-bottom: 8px; margin-right: 60px; }
+    .month-label {
+      font-size: 12px;
+      color: #b0b0b0;
+      text-align: center;
+      font-weight: 600;
+      min-width: 0;
+      flex-shrink: 0;
+    }
+
+    .heatmap-wrapper { display: flex; gap: 10px; }
+    .days { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: #b0b0b0; font-weight: 500; }
+    .day-label { height: 18px; display: flex; align-items: center; }
+
+    #heatmap { display: flex; gap: 4px; flex-wrap: nowrap; }
+
+    .week-column { display: flex; flex-direction: column; gap: 4px; }
+
+    .day {
+      width: 18px;
+      height: 18px;
+      background: #0a3d62;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: 1px solid #1e5f74;
+    }
+
+    .day:hover {
+      transform: scale(1.15);
+      box-shadow: 0 2px 8px rgba(62, 180, 237, 0.4);
+      border-color: #3eb4ed;
+    }
+
+    .l1 { background: #2c7a9b; border-color: #2c7a9b; }
+    .l2 { background: #3a9ec2; border-color: #3a9ec2; }
+    .l3 { background: #4fb3d4; border-color: #4fb3d4; }
+    .l4 { 
+      background: #6dd5ed;
+      border-color: #6dd5ed;
+      box-shadow: 0 0 10px rgba(109, 213, 237, 0.5);
+    }
+    
+    .l5 { 
+      background: #2dd4bf;
+      border-color: #2dd4bf;
+      animation: pulse 0.5s ease;
+      box-shadow: 0 0 15px rgba(45, 212, 191, 0.6);
+    }
+
+    .empty-day {
+      background: #0f4c75;
+      border: 1px solid #1e5f74;
+      cursor: default;
+    }
+
+    .month-separator {
+      border-left: 2px solid #ecf3f7;
+      padding-left: 2px;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.2); }
+    }
+
+    .legend { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 20px; font-size: 13px; color: #b0b0b0; }
+    .legend .box { width: 16px; height: 16px; border-radius: 3px; border: 1px solid #1e5f74; }
+    .l0 { background: #0a3d62; }
+
+    #tooltip {
+      position: fixed;
+      background: #0a3d62;
+      color: #fff;
+      padding: 8px 12px;
+      font-size: 13px;
+      border-radius: 6px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      z-index: 1000;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      border: 1px solid #2c7a9b;
+    }
+
+    .buttons { display: flex; gap: 10px; justify-content: center; margin-top: 20px; }
+    button {
+      background: linear-gradient(135deg, #1e5f74 0%, #0a3d62 100%);
+      color: white;
+      border: 1px solid #2c7a9b;
+      padding: 12px 24px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    }
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(62, 180, 237, 0.4);
+      background: linear-gradient(135deg, #2c7a9b 0%, #1e5f74 100%);
+    }
+
+    .overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(10,61,98,0.6);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 10000;
+    }
+    .overlay-content {
+      background: #0a3d62;
+      color: white;
+      padding: 30px;
+      border-radius: 15px;
+      text-align: center;
+      max-width: 80%;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.7);
+    }
+    .overlay-content button {
+      margin-top: 20px;
+      background: #e74c3c;
+      border: none;
+      padding: 10px 20px;
+      font-size: 16px;
+      border-radius: 10px;
+      cursor: pointer;
+      color: white;
+    }
+.today {
+  outline: 2px solid #ffd166;
+  outline-offset: 2px;
+  box-shadow: 0 0 12px rgba(255, 209, 102, 0.8);
+}
+
+    @media (max-width: 768px) {
+      h1 { font-size: 1.8em; }
+      .day { width: 14px; height: 14px; }
+      .day-label { height: 14px; font-size: 10px; }
+      .month-label { font-size: 10px; }
+      .quran-verse { font-size: 1em; padding: 15px; }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>📿 متابعة الصلوات</h1>
+    <p>حافظ على صلواتك واجعل عامك مليئاً بالخير - <span id="currentYear"></span></p>
+  </div>
+
+  <div class="quran-verse">
+    <div class="verse-text">
+      "إِنَّ الصَّلَاةَ كَانَتْ عَلَى الْمُؤْمِنِينَ كِتَابًا مَّوْقُوتًا"
+    </div>
+    <div class="verse-reference">سورة النساء - آية 103</div>
+  </div>
+
+  <div class="stats" id="stats">
+    <div class="stat-card">
+      <div class="stat-number" id="totalPrayers">0</div>
+      <div class="stat-label">إجمالي الصلوات</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number" id="perfectDays">0</div>
+      <div class="stat-label">أيام كاملة (5 صلوات)</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number" id="currentStreak">0</div>
+      <div class="stat-label">أيام متتالية</div>
+    </div>
+  </div>
+
+  <div class="tracker-wrapper">
+    <div class="months" id="monthsHeader"></div>
+    <div class="heatmap-wrapper">
+      <div class="days">
+        <div class="day-label">السبت</div>
+        <div class="day-label">الأحد</div>
+        <div class="day-label">الاثنين</div>
+        <div class="day-label">الثلاثاء</div>
+        <div class="day-label">الأربعاء</div>
+        <div class="day-label">الخميس</div>
+        <div class="day-label">الجمعة</div>
+      </div>
+
+      <div id="heatmap"></div>
+    </div>
+
+    <div class="legend">
+      <span>أقل</span>
+      <div class="box l0"></div>
+      <div class="box l1"></div>
+      <div class="box l2"></div>
+      <div class="box l3"></div>
+      <div class="box l4"></div>
+      <div class="box l5"></div>
+      <span>أكثر (5 صلوات)</span>
+    </div>
+  </div>
+
+  <div class="buttons">
+    <button onclick="resetData()">🔄 مسح البيانات</button>
+  </div>
+</div>
+
+<div id="tooltip"></div>
+
+<div id="overlayAyah" class="overlay">
+  <div class="overlay-content">
+    <div id="overlayText"></div>
+    <div id="overlayRef"></div>
+    <button onclick="closeOverlay()">إغلاق</button>
+  </div>
+</div>
+
+<script>
+const heatmap = document.getElementById("heatmap");
+const tooltip = document.getElementById("tooltip");
+const monthsHeader = document.getElementById("monthsHeader");
+const year = new Date().getFullYear();
+
+const months = [
+  { name: "يناير", days: 31 },
+  { name: "فبراير", days: (year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0)) ? 29 : 28 },
+  { name: "مارس", days: 31 },
+  { name: "أبريل", days: 30 },
+  { name: "مايو", days: 31 },
+  { name: "يونيو", days: 30 },
+  { name: "يوليو", days: 31 },
+  { name: "أغسطس", days: 31 },
+  { name: "سبتمبر", days: 30 },
+  { name: "أكتوبر", days: 31 },
+  { name: "نوفمبر", days: 30 },
+  { name: "ديسمبر", days: 31 }
+];
+
+const ayat = [
+  { text: "وَأَقِمِ الصَّلَاةَ لِذِكْرِي", ref: "سورة طه: 14", type: "قرآن" },
+  { text: "إِنَّ الصَّلَاةَ تَنْهَىٰ عَنِ الْفَحْشَاءِ وَالْمُنكَرِ", ref: "سورة العنكبوت: 45", type: "قرآن" },
+  { text: "قَدْ أَفْلَحَ الْمُؤْمِنُونَ * الَّذِينَ هُمْ فِي صَلَاتِهِمْ خَاشِعُونَ", ref: "سورة المؤمنون: 1-2", type: "قرآن" },
+  { text: "وَالَّذِينَ هُمْ عَلَىٰ صَلَوَاتِهِمْ يُحَافِظُونَ", ref: "سورة المعارج: 34", type: "قرآن" },
+  { text: "حَافِظُوا عَلَى الصَّلَوَاتِ وَالصَّلَاةِ الْوُسْطَىٰ", ref: "سورة البقرة: 238", type: "قرآن" },
+  { text: "الصلاة عماد الدين، من أقامها فقد أقام الدين، ومن هدمها فقد هدم الدين", ref: "حديث شريف", type: "حديث" },
+  { text: "بين الرجل وبين الشرك والكفر ترك الصلاة", ref: "رواه مسلم", type: "حديث" },
+  { text: "أول ما يحاسب عليه العبد يوم القيامة الصلاة، فإن صلحت صلح سائر عمله", ref: "رواه الطبراني", type: "حديث" },
+  { text: "من حافظ عليها كانت له نورًا وبرهانًا ونجاة يوم القيامة", ref: "رواه أحمد", type: "حديث" },
+  { text: "ليس بين العبد والجنة إلا الصلاة", ref: "حديث شريف", type: "حديث" }
+];
+
+let currentDate = new Date();
+let weekColumns = [];
+let currentWeek = [];
+
+let startDay = currentDate.getDay();
+let startOffset = startDay === 6 ? 0 : startDay + 1;
+
+for(let i=0;i<startOffset;i++){
+  const emptyCell = document.createElement("div");
+  emptyCell.className = "day empty-day";
+  currentWeek.push(emptyCell);
+}
+
+let monthStarts = [];
+months.forEach((month,mIndex)=>{
+  const monthStartWeek = weekColumns.length;
+  monthStarts.push({week: monthStartWeek, name: month.name});
+
+  for(let i=0;i<month.days;i++){
+    const cell = document.createElement("div");
+    cell.className = "day";
+    const dateKey = currentDate.toISOString().split("T")[0];
+    let level = parseInt(localStorage.getItem(dateKey)||0);
+
+    function render(){
+      cell.className = "day";
+      if(level>0) cell.classList.add("l"+level);
+      if(i===0 && mIndex!==0) cell.classList.add("month-separator");
+    }
+    render();
+
+    cell.addEventListener("click", ((cellLocal,dateKeyLocal)=>{
+      return ()=>{
+        let lvl = parseInt(localStorage.getItem(dateKeyLocal)||0);
+        const oldLevel = lvl;
+        const today = new Date();
+          today.setHours(0,0,0,0);
+          const cellDate = new Date(dateKeyLocal);
+          if(cellDate > today)
+          {
+            alert("لا يمكنك تسجيل صلوات في المستقبل!");
+            return;
+          }
+        lvl = (lvl+1)%6;
+        localStorage.setItem(dateKeyLocal,lvl);
+        level = lvl; 
+        render();
+        if(lvl===5 && oldLevel!==5){
+          const ayah = ayat[Math.floor(Math.random()*ayat.length)];
+          document.getElementById("overlayText").textContent = `"${ayah.text}"`;
+          document.getElementById("overlayRef").textContent = ayah.ref;
+          document.getElementById("overlayAyah").style.display="flex";
+        }
+        updateStats();
+      }                                                     
+    })(cell,dateKey));
+
+    cell.dataset.date = dateKey;
+
+    cell.addEventListener("mouseenter",(e)=>{
+      const dateKey = cell.dataset.date;
+      const level = parseInt(localStorage.getItem(dateKey)||0);
+      tooltip.style.opacity = 1;
+      const date = new Date(dateKey);
+      const dayName = date.toLocaleDateString("ar-EG", {weekday:'long'});
+      const dayNum = date.toLocaleDateString("ar-EG", {day:'numeric'});
+      const monthName = date.toLocaleDateString("ar-EG", {month:'long'});
+      
+      let prayerText = "";
+      if(level === 0) prayerText = "لا توجد صلوات مسجلة";
+      else if(level === 1) prayerText = "صلاة واحدة";
+      else if(level === 2) prayerText = "صلاتان";
+      else if(level === 3) prayerText = "3 صلوات";
+      else if(level === 4) prayerText = "4 صلوات";
+      else if(level === 5) prayerText = "5 صلوات ✓";
+      
+      
+   tooltip.innerHTML=`<strong>${dayName} ${dayNum} ${monthName}</strong><br>${prayerText}`;
+
+    });
+
+    cell.addEventListener("mousemove",(e)=>{
+      tooltip.style.left=e.pageX+10+"px";
+      tooltip.style.top=e.pageY+10+"px";
+      
+    });
+    cell.addEventListener("mouseleave",()=>{tooltip.style.opacity=0;});
+
+    currentWeek.push(cell);
+    if(currentWeek.length===7){
+      weekColumns.push(currentWeek);
+      currentWeek=[];
+    }
+    currentDate.setDate(currentDate.getDate()+1);
+  }
+});
+
+if(currentWeek.length>0){
+  while(currentWeek.length<7){
+    const emptyCell = document.createElement("div");
+    emptyCell.className="day empty-day";
+    currentWeek.push(emptyCell);
+  }
+  weekColumns.push(currentWeek);
+}
+
+weekColumns.forEach(week=>{
+  const weekCol=document.createElement("div");
+  weekCol.className="week-column";
+  week.forEach(day=>weekCol.appendChild(day));
+  heatmap.appendChild(weekCol);
+});
+
+monthStarts.forEach((monthInfo,index)=>{
+  const monthLabel = document.createElement("div");
+  monthLabel.className="month-label";
+  monthLabel.textContent=monthInfo.name;
+  const nextMonthWeek = index<monthStarts.length-1?monthStarts[index+1].week:weekColumns.length;
+  const weeksSpan = nextMonthWeek-monthInfo.week;
+  monthLabel.style.width=`${weeksSpan*22}px`;
+  monthsHeader.appendChild(monthLabel);
+});
+
+
+function updateStats() {
+  let totalPrayers = 0;
+  let perfectDays = 0;
+  let currentStreak = 0;
+  
+  const today = new Date();
+  let checkDate = new Date();
+  
+  while (checkDate <= today && checkDate.getFullYear() === year) {
+    const dateKey = checkDate.toISOString().split("T")[0];
+    const level = parseInt(localStorage.getItem(dateKey) || 0);
+    
+    totalPrayers += level;
+    
+    if (level === 5) {
+      perfectDays++;
+      currentStreak++;
+    } else if (checkDate < today) {
+      currentStreak = 0;
+    }
+    
+    checkDate.setDate(checkDate.getDate() + 1);
+  }
+  
+  document.getElementById('totalPrayers').textContent = totalPrayers;
+  document.getElementById('perfectDays').textContent = perfectDays;
+  document.getElementById('currentStreak').textContent = currentStreak;
+}
+
+function resetData(){
+  if(confirm("هل أنت متأكد من مسح جميع البيانات؟")){
+    localStorage.clear();
+    location.reload();
+  }
+}
+function closeOverlay() {
+  document.getElementById("overlayAyah").style.display = "none";
+}
+
+
+
+
+</script>
+</body>
+</html>
